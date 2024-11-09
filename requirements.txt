@@ -1,9 +1,10 @@
-#add together ai
-termcolor
+together
 pandas
+termcolor
 pexpect
 scipy
 ipdb
 absl-py
 diskcache
+requests
 python-dotenv
