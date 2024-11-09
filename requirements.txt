@@ -1,0 +1,7 @@
+#add together ai
+pandas
+pexpect
+scipy
+ipdb
+absl-py
+diskcache
