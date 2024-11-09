@@ -5,3 +5,4 @@ scipy
 ipdb
 absl-py
 diskcache
+python-dotenv
