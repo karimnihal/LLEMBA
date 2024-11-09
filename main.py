@@ -7,8 +7,8 @@ from absl import app, flags
 from llemba.utils import get_llemba_scores
 
 
-flags.DEFINE_string('method', "LLEMBA-MQM", 'Which method to use?')
-flags.DEFINE_string('model', "LLAMA-70B-Inst-TogAI", 'TogetherAI Llama 70B Instruct model')
+flags.DEFINE_string('method', None, 'Which method to use?')
+flags.DEFINE_string('model', None, 'Select Model')
 flags.DEFINE_string('source', None, 'Filepath to the source file.')
 flags.DEFINE_string('hypothesis', None, 'Filepath to the translation file.')
 flags.DEFINE_string('source_lang', None, 'Source language name.')
@@ -41,7 +41,7 @@ def main(argv):
 
     assert len(source) == len(hypothesis), "Source and hypothesis files must have the same number of lines."
 
-    answers = get_gemba_scores(source, hypothesis, FLAGS.source_lang, FLAGS.target_lang, FLAGS.method, FLAGS.model)
+    answers = get_llemba_scores(source, hypothesis, FLAGS.source_lang, FLAGS.target_lang, FLAGS.method, FLAGS.model)
 
     for answer in answers:
         print(answer)

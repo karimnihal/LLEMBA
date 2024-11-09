@@ -16,7 +16,7 @@ class TogetherApi:
             raise ValueError("API key is required. Set it as an argument or in the environment variable 'TOGETHER_API_KEY'.")
 
         self.verbose = verbose
-        self.client = Together(self.api_key)
+        self.client = Together(api_key = self.api_key)
         
         # Set logging level
         logging.getLogger().setLevel(logging.CRITICAL)  # Suppress HTTP INFO log messages
