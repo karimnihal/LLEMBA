@@ -1,0 +1,64 @@
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+*.env
+
+# Python cache and build files
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.eggs/
+dist/
+build/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# Virtual environment directories
+venv/
+env/
+.venv/
+
+# API keys and config files
+config.json
+api_keys.json
+
+# Logs
+*.log
+
+# IDE files
+.vscode/
+.idea/
+
+# Pytest cache
+.pytest_cache/
+
+# Node.js dependencies (if using a frontend)
+node_modules/
+
+# Additional directories for model files, if downloading pre-trained models
+models/
+data/
+
+# Ignore output files from the app
+output/
+*.out
+
+# Mac and Linux system files
+.swp
+.swo
+
+# Pipenv and poetry
+Pipfile.lock
+poetry.lock
+
+# Ignore any backup files
+*.bak
+*.orig
+
+# Custom exclusions
+secrets.yaml
+auth_config.json
