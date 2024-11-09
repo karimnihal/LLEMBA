@@ -4,44 +4,34 @@ import time
 import logging
 import tqdm
 from termcolor import colored
-from dotenv import load_dotenv
-from together import Together  # Import Together client library
+from together import Together
 
-# Load environment variables from .env file
-load_dotenv()
-
-TOGETHER_AI_TOKEN = os.getenv("TOGETHER_AI_TOKEN")
-if not TOGETHER_AI_TOKEN:
-    raise Exception("Together AI token is not set in the .env file")
-
+# class for calling Together AI API and handling cache
 class TogetherApi:
-    def __init__(self, verbose=False):
+    def __init__(self, api_key=None, verbose=False):
+        # Check if api_key is provided or fall back to environment variable
+        self.api_key = api_key or os.getenv("TOGETHER_API_KEY")
+        
+        if not self.api_key:
+            raise ValueError("API key is required. Set it as an argument or in the environment variable 'TOGETHER_API_KEY'.")
+
         self.verbose = verbose
-        self.model_name = "meta-llama/Llama-3-70b-chat-hf"  # Updated model name
-        self.client = Together(api_key=TOGETHER_AI_TOKEN)  # Initialize Together client with API key
-        logging.getLogger().setLevel(logging.CRITICAL)  # Suppress logging info
+        self.client = Together(self.api_key)
+        
+        # Set logging level
+        logging.getLogger().setLevel(logging.CRITICAL)  # Suppress HTTP INFO log messages
 
-    def request(self, prompt, model=None, parse_response=lambda x: x, temperature=0, answer_id=-1, cache=None, max_tokens=None, stream=False):
-        # Use provided model or default to self.model_name
-        model = model or self.model_name
+    # answer_id is used for determining if it was the top answer or how deep in the list it was
+    def request(self, prompt, model, parse_response, temperature=0.0, answer_id=-1, cache=None, max_tokens=None):
+        request = {"model": model, "temperature": temperature, "prompt": prompt}
 
-        # If streaming is enabled, handle it here
-        if stream:
-            return self.request_stream(prompt, model, max_tokens)
-
-        # Convert request dictionary to a tuple of sorted items for hashing
-        request_key = tuple(sorted({"model": model, "temperature": temperature, "prompt": prompt, "max_tokens": max_tokens}.items()))
-
-        # Initialize cache if it's None
-        if cache is None:
-            cache = {}
-
-        if request_key in cache and cache[request_key] is not None and len(cache[request_key]) > 0:
-            answers = cache[request_key]
+        if request in cache and cache[request] is not None and len(cache[request]) > 0:
+            answers = cache[request]
         else:
-            answers = self.request_api(prompt, temperature, max_tokens)
-            cache[request_key] = answers
+            answers = self.request_api(prompt, model, temperature, max_tokens)
+            cache[request] = answers
 
+        # There is no valid answer
         if len(answers) == 0:
             return [{
                 "temperature": temperature,
@@ -54,8 +44,8 @@ class TogetherApi:
 
         parsed_answers = []
         for full_answer in answers:
-            finish_reason = full_answer.get("finish_reason", "stop")
-            full_answer = full_answer.get("answer", "")
+            finish_reason = full_answer["finish_reason"]
+            full_answer = full_answer["answer"]
             answer_id += 1
             answer = parse_response(full_answer)
             if self.verbose or temperature > 0:
@@ -73,74 +63,90 @@ class TogetherApi:
                 }
             )
 
-        if len(parsed_answers) == 0:
-            return self.request(prompt, parse_response, temperature=temperature + 1, answer_id=answer_id, cache=cache)
+        # There was no valid answer, increase temperature and try again
+        if len(parsed_answers) == 0 and temperature < 1.0:
+            return self.request(prompt, model, parse_response, temperature=temperature + 0.1, answer_id=answer_id, cache=cache)
 
         return parsed_answers
 
-    def request_stream(self, prompt, model, max_tokens):
-        # Stream responses from Together API with updated parameters
-        stream = self.client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=max_tokens,
-            temperature=0,
-            top_p=0.7,
-            top_k=50,
-            repetition_penalty=1,
-            stop=["<|eot_id|>"],
-            stream=True
-        )
-
-        # Print each chunk as it streams in
-        for chunk in stream:
-            if hasattr(chunk, 'choices'):
-                content = chunk.choices[0].delta.content or ""
-                print(content, end='', flush=True)
-
-    def request_api(self, prompt, temperature=0, max_tokens=200):
-        # This function is kept for non-streaming API calls, if needed
-        payload = {
-            "model": self.model_name,
-            "prompt": prompt,
-            "max_tokens": max_tokens,
-            "temperature": temperature / 10,
-            "top_p": 1,
-            "n": 1,
-            "stop": ["</s>"]
-        }
-
-        headers = {
-            "accept": "application/json",
-            "content-type": "application/json",
-            "Authorization": f"Bearer {TOGETHER_AI_TOKEN}"
-        }
+    def request_api(self, prompt, model, temperature=0.0, max_tokens=None):
+        if temperature > 1.0:
+            return []
 
         while True:
             try:
-                response = requests.post(self.api_url, json=payload, headers=headers)
-                response.raise_for_status()
-                data = response.json()
-
-                # Ensure choices exist in the response, else return empty list
-                if "choices" not in data or data["choices"] is None:
-                    print("No choices found in the response.")
-                    return []
-
-                # Extract answers, handling cases where "text" might not be present
-                return [{"answer": choice.get("text", "").strip(), "finish_reason": choice.get("finish_reason", "stop")}
-                        for choice in data["choices"]]
-            except requests.exceptions.RequestException as e:
+                answers = self.call_api(prompt, model, temperature, max_tokens)
+                break
+            except Exception as e:
+                # Handle exceptions and retry
                 print(colored("Error, retrying...", "red"), file=sys.stderr)
                 print(e, file=sys.stderr)
                 time.sleep(1)
 
-    def bulk_request(self, df, parse_mqm_answer, cache=None, max_tokens=200):
-        if cache is None:
-            cache = {}
+        return answers
+
+    def call_api(self, prompt, model, temperature, max_tokens):
+        parameters = {
+            "model": model,
+            "temperature": temperature,
+            "top_p": 1,
+            "top_k": 50,
+            "repetition_penalty": 1,
+            "stop": None,
+            "stream": False
+        }
+
+        if max_tokens is not None:
+            parameters["max_tokens"] = max_tokens
+
+        if isinstance(prompt, list):
+            parameters["messages"] = prompt
+        else:
+            parameters["messages"] = [{
+                "role": "user",
+                "content": prompt,
+            }]
+
+        response = self.client.chat.completions.create(**parameters)
+
+        answers = []
+        if hasattr(response, 'choices'):
+            for choice in response.choices:
+                if hasattr(choice, 'message') and hasattr(choice.message, 'content'):
+                    answer = choice.message.content.strip()
+                elif hasattr(choice, 'text'):
+                    answer = choice.text.strip()
+                else:
+                    answer = ''
+                finish_reason = getattr(choice, 'finish_reason', None)
+
+                if finish_reason != "stop":
+                    if self.verbose:
+                        print(colored(f"Increasing max tokens to fit answers.", "red") + colored(answer, "blue"), file=sys.stderr)
+                    print(f"Finish reason: {finish_reason}", file=sys.stderr)
+                    if max_tokens is None:
+                        return []
+                    return self.request_api(prompt, model, temperature=temperature, max_tokens=max_tokens + 200)
+
+                answers.append({
+                    "answer": answer,
+                    "finish_reason": finish_reason,
+                })
+        else:
+            # Handle unexpected response format
+            print("No 'choices' in response.", file=sys.stderr)
+            return []
+
+        if len(answers) > 1:
+            # Remove duplicate answers
+            answers = [dict(t) for t in {tuple(d.items()) for d in answers}]
+
+        return answers
+
+    def bulk_request(self, df, model, parse_mqm_answer, cache, max_tokens=None):
         answers = []
         for i, row in tqdm.tqdm(df.iterrows(), total=len(df), file=sys.stderr):
             prompt = row["prompt"]
-            parsed_answers = self.request(prompt, parse_mqm_answer, cache=cache, max_tokens=max_tokens)
+            parsed_answers = self.request(prompt, model, parse_mqm_answer, cache=cache, max_tokens=max_tokens)
             answers += parsed_answers
         return answers
