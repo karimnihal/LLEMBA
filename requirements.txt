@@ -1,4 +1,5 @@
 #add together ai
+termcolor
 pandas
 pexpect
 scipy
