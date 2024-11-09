@@ -1,38 +1,40 @@
-
 from llemba.together_api import TogetherApi
-import pandas as pd
-from dotenv import load_dotenv
-import os
-import sys
-import time
-import logging
-import requests  # Import requests to handle HTTP requests
-import tqdm
 from termcolor import colored
 from dotenv import load_dotenv
-from together import Together
+import pandas as pd
 
-# Load environment variables from .env file
-load_dotenv()
+load_dotenv()  # Load environment variables from .env
 
-# Define a simple parsing function
-def parse_mqm_answer(answer):
+def parse_response(answer):
+    # Implement your parsing logic here
     return answer
 
-# Sample DataFrame for testing
-data = {
-    "prompt": [
-        "Tell me a fun fact about space.",
-        "What is the capital of France?",
-        "Who wrote 'To Kill a Mockingbird'?"
-    ]
-}
-df = pd.DataFrame(data)
-
-# Initialize TogetherApi and test bulk_request
+# Initialize the TogetherApi with verbose output
 together_api = TogetherApi(verbose=True)
-responses = together_api.bulk_request(df, parse_mqm_answer, max_tokens=100)
 
-# Print responses
-for i, response in enumerate(responses):
-    print(f"Response {i+1}: {response}")
+# List of prompts to process
+prompts = [
+    "Tell me a joke.",
+    "What is the capital of France?",
+    "Explain the theory of relativity.",
+    "Give me a recipe for pancakes.",
+    "How does a plane fly?"
+]
+
+# Create a DataFrame with the prompts
+df = pd.DataFrame(prompts, columns=['prompt'])
+
+# Model to use from Together AI
+model = "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo"  # Use an available model from Together AI
+
+# Cache dictionary to store responses
+cache = {}
+
+# Make a bulk request
+answers = together_api.bulk_request(df, model, parse_response, cache=cache)
+
+# Print the answers
+for ans in answers:
+    print(f"Prompt: {ans['prompt']}")
+    print(f"Answer: {ans['answer']}")
+    print('-' * 50)
