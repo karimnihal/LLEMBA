@@ -11,25 +11,24 @@ def parse_and_check_numerical_answer(answer, min=None, max=None):
 
     return None
 
+def parse_numerical_answer(answer, min=0, max=100):
+    # Pattern 1: Look for "X out of Y" or "X/Y" formats
+    match = re.search(r'(\d+)\s*(?:out of|/)\s*(\d+)', answer)
+    if match:
+        score = int(match.group(1))
+        total = int(match.group(2))
+        if min <= score <= max and total == max:
+            return score
 
-def parse_numerical_answer(answer, min=None, max=None):
-    # get all numbers in a string
-    numbers = re.findall(r'\d+', answer)
-    if len(numbers) == 1:
-        return int(numbers[0])
+    # Pattern 2: Look for single number between min and max (e.g., "Score: 80")
+    numbers = re.findall(r'\b\d+\b', answer)
+    for num in numbers:
+        num = int(num)
+        if min <= num <= max:
+            return num
 
-    # check if the answer is in form ['100'] and extract the number
-    r1 = re.match(r"^\[['\"][0-9]*['\"]\]$", answer)
-    if r1 is not None:
-        return int(answer[2:-2])
+    return None  # If no pattern matched, return None
 
-    if max is not None:
-        # check if the answer is in a form of 0/100
-        r2 = re.match(rf"^[0-9]*/{max}$", answer)
-        if r2 is not None:
-            return int(answer.split("/")[0])
-
-    return None
 
 
 def validate_number(x, min=0, max=100):
