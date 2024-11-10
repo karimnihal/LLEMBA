@@ -19,7 +19,7 @@ export TOGETHER_API_KEY=
 It assumes two files with the same number of lines. It prints the score for each line pair:
 
 ```
-python main.py --source=source.txt --hypothesis=hypothesis.txt --source_lang=English --target_lang=Czech --method="LLEMBA-DA" --model="meta-llama/LLama-3.2-3B-Instruct-Turbo"
+python main.py --source=source.txt --hypothesis=hypothesis.txt --source_lang=Czech --target_lang=English --method="LLEMBA-DA" --model="meta-llama/LLama-3.2-3B-Instruct-Turbo"
 ```
 
 The main recommended methods:`LLEMBA-DA` with the model `meta-llama/LLama-3.2-3B-Instruct-Turbo`.
