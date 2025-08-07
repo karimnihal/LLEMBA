@@ -2,6 +2,10 @@
 
 This is a fork of the GEMBA Repository. Acknowledgements below.
 
+### Also see [Llama-Chain-Translate](https://github.com/karimnihal/Llama-Chain-Translate)
+
+## Install 
+
 Install required packages with python >= 3.8 
 
 ```
